@@ -20,6 +20,8 @@ class UrlAggregatorBuilder implements Builder {
   static const _extraParamName = r'$extra';
 
   static final _pathParamPattern = RegExp(r':([a-zA-Z_]\w*)');
+  static final _camelBoundary1 = RegExp(r'([a-z0-9])([A-Z])');
+  static final _camelBoundary2 = RegExp(r'([A-Z]+)([A-Z][a-z])');
   static const _jsonEncoder = JsonEncoder.withIndent('  ');
 
   @override
@@ -98,16 +100,24 @@ class UrlAggregatorBuilder implements Builder {
       if (name == null || name.isEmpty) continue;
       if (name == _extraParamName) continue;
       if (pathParamNames.contains(name)) continue;
-      params.add(_Param(name: name, type: _jsonType(parameter.type)));
+      params.add(_Param(name: _toSnakeCase(name), type: _jsonType(parameter.type)));
     }
     return params;
+  }
+
+  String _toSnakeCase(String input) {
+    return input
+        .replaceAllMapped(_camelBoundary2, (m) => '${m[1]}_${m[2]}')
+        .replaceAllMapped(_camelBoundary1, (m) => '${m[1]}_${m[2]}')
+        .toLowerCase();
   }
 
   String _jsonType(DartType type) {
     if (type.isDartCoreString) return 'string';
     if (type.isDartCoreBool) return 'boolean';
-    if (type.isDartCoreInt) return 'int';
-    if (type.isDartCoreDouble) return 'double';
+    if (type.isDartCoreInt) return 'string';
+    if (type.isDartCoreDouble) return 'string';
+    if (type.isDartCoreNum) return 'string';
     if (type.isDartCoreList) return 'list';
     return type.getDisplayString().toLowerCase();
   }
@@ -122,7 +132,6 @@ class _Route {
   Map<String, Object?> toJson() => {
         'path': path,
         'query': query.map((p) => p.toJson()).toList(),
-        'fragment': null,
       };
 }
 
