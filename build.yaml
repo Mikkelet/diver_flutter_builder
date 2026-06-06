@@ -1,0 +1,17 @@
+targets:
+  $default:
+    builders:
+      diver_flutter_annotations|url_aggregator:
+        enabled: true
+
+builders:
+  url_aggregator:
+    import: "package:diver_flutter_annotations/builder.dart"
+    builder_factories: ["urlAggregatorBuilder"]
+    build_extensions:
+      $lib$:
+        - "app_urls.txt"
+    auto_apply: dependents
+    build_to: source
+    required_inputs:
+      - ".dart"
