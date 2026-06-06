@@ -53,7 +53,7 @@ class UrlAggregatorBuilder implements Builder {
   }
 
   String? _readTypedGoRoutePath(Element element) {
-    for (final annotation in element.metadata.annotations) {
+    for (final annotation in element.metadata) {
       final annotationElement = annotation.element;
       final enclosingName =
           annotationElement?.enclosingElement?.name ?? annotationElement?.name;
@@ -68,7 +68,7 @@ class UrlAggregatorBuilder implements Builder {
 
   bool _hasExtraParameter(ClassElement element) {
     for (final constructor in element.constructors) {
-      for (final parameter in constructor.formalParameters) {
+      for (final parameter in constructor.parameters) {
         if (parameter.name == _extraParamName) return true;
       }
     }
