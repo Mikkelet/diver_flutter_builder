@@ -67,11 +67,15 @@ class UrlAggregatorBuilder implements Builder {
         final host = segments.first;
         final remainder = segments.skip(1).join('/');
         final diverRoute = _readDiverRoute(classElement);
+        final fallbackName = remainder.isEmpty ? host : '$host/$remainder';
+        final name = (diverRoute?.name.isNotEmpty ?? false)
+            ? diverRoute!.name
+            : fallbackName;
         routes.add(_Route(
           host: host,
           path: remainder,
           query: _queryParams(classElement, path),
-          name: diverRoute?.name ?? '',
+          name: name,
           description: diverRoute?.description ?? '',
         ));
       }
