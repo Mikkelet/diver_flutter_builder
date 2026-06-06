@@ -17,6 +17,7 @@ class UrlAggregatorBuilder implements Builder {
   static const _outputAsset = 'lib/app_urls.json';
   static const _outputExtension = 'app_urls.json';
   static const _typedGoRouteName = 'TypedGoRoute';
+  static const _diverRouteName = 'DiverRoute';
   static const _extraParamName = r'$extra';
 
   static final _pathParamPattern = RegExp(r':([a-zA-Z_]\w*)');
@@ -42,6 +43,12 @@ class UrlAggregatorBuilder implements Builder {
       for (final classElement in reader.classes) {
         final path = _readTypedGoRoutePath(classElement);
         if (path == null) continue;
+        if (!path.startsWith('/')) {
+          log.fine(
+            '${classElement.name} skipped: relative route ("$path").',
+          );
+          continue;
+        }
         if (_hasExtraParameter(classElement)) {
           log.fine(
             '${classElement.name} skipped: has \$extra constructor parameter.',
@@ -53,10 +60,13 @@ class UrlAggregatorBuilder implements Builder {
             path.split('/').where((s) => s.isNotEmpty).toList();
         final host = segments.isEmpty ? '' : segments.first;
         final remainder = segments.skip(1).join('/');
+        final diverRoute = _readDiverRoute(classElement);
         routes.add(_Route(
           host: host,
           path: remainder,
           query: _queryParams(classElement, path),
+          name: diverRoute?.name,
+          description: diverRoute?.description,
         ));
       }
     }
@@ -65,7 +75,9 @@ class UrlAggregatorBuilder implements Builder {
       final byHost = a.host.compareTo(b.host);
       return byHost != 0 ? byHost : a.path.compareTo(b.path);
     });
-    final body = _jsonEncoder.convert(routes.map((r) => r.toJson()).toList());
+    final body = _jsonEncoder.convert({
+      'routes': routes.map((r) => r.toJson()).toList(),
+    });
 
     await buildStep.writeAsString(
       AssetId(buildStep.inputId.package, _outputAsset),
@@ -83,6 +95,22 @@ class UrlAggregatorBuilder implements Builder {
       final value = annotation.computeConstantValue();
       final path = value?.getField('path')?.toStringValue();
       if (path != null) return path;
+    }
+    return null;
+  }
+
+  ({String name, String description})? _readDiverRoute(Element element) {
+    for (final annotation in element.metadata.annotations) {
+      final annotationElement = annotation.element;
+      final enclosingName =
+          annotationElement?.enclosingElement?.name ?? annotationElement?.name;
+      if (enclosingName != _diverRouteName) continue;
+
+      final value = annotation.computeConstantValue();
+      final name = value?.getField('name')?.toStringValue();
+      final description = value?.getField('description')?.toStringValue();
+      if (name == null || description == null) continue;
+      return (name: name, description: description);
     }
     return null;
   }
@@ -135,13 +163,23 @@ class UrlAggregatorBuilder implements Builder {
 }
 
 class _Route {
-  _Route({required this.host, required this.path, required this.query});
+  _Route({
+    required this.host,
+    required this.path,
+    required this.query,
+    this.name,
+    this.description,
+  });
 
   final String host;
   final String path;
   final List<_Param> query;
+  final String? name;
+  final String? description;
 
   Map<String, Object?> toJson() => {
+        if (name != null) 'name': name,
+        if (description != null) 'description': description,
         'host': host,
         'path': path,
         'query': query.map((p) => p.toJson()).toList(),

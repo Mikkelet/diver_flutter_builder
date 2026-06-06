@@ -1,7 +1,7 @@
 targets:
   $default:
     builders:
-      diver_flutter_annotations|url_aggregator:
+      diver_flutter_builder|url_aggregator:
         enabled: true
 
 builders:

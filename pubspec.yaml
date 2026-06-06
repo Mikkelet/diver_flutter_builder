@@ -1,4 +1,4 @@
-name: diver_flutter_annotations
+name: diver_flutter_builder
 description: >-
   build_runner builder that aggregates go_router route URLs (read from
   @TypedGoRoute annotations) into a single text file. Routes whose class
@@ -10,11 +10,15 @@ environment:
   sdk: ^3.5.0
 
 dependencies:
-  analyzer: ">=8.2.0 <13.0.0"
+  analyzer: ">=8.0.0 <13.0.0"
   build: ">=2.4.0 <5.0.0"
   glob: ^2.1.0
   source_gen: ">=3.0.0 <5.0.0"
+  http: ^1.0.0
 
 dev_dependencies:
   lints: ^5.0.0
   test: ^1.25.0
+
+executables:
+  upload_urls:
