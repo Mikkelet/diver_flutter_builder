@@ -1,20 +1,26 @@
+import 'dart:convert';
+
 import 'package:analyzer/dart/element/element.dart';
+import 'package:analyzer/dart/element/type.dart';
 import 'package:build/build.dart';
 import 'package:glob/glob.dart';
 import 'package:source_gen/source_gen.dart';
 
 /// Builder that scans every Dart library in the consuming package for classes
-/// carrying a `@TypedGoRoute(...)` annotation and writes their `path` values
-/// to `lib/app_urls.txt`, one per line, sorted alphabetically.
+/// carrying a `@TypedGoRoute(...)` annotation and writes a JSON description of
+/// each route to `lib/app_urls.json`, sorted alphabetically by path.
 ///
 /// Routes whose class has a `$extra` constructor parameter are excluded:
 /// they require a runtime object and cannot be reached by URL alone, so they
 /// are not deeplink-safe.
 class UrlAggregatorBuilder implements Builder {
-  static const _outputAsset = 'lib/app_urls.txt';
-  static const _outputExtension = 'app_urls.txt';
+  static const _outputAsset = 'lib/app_urls.json';
+  static const _outputExtension = 'app_urls.json';
   static const _typedGoRouteName = 'TypedGoRoute';
   static const _extraParamName = r'$extra';
+
+  static final _pathParamPattern = RegExp(r':([a-zA-Z_]\w*)');
+  static const _jsonEncoder = JsonEncoder.withIndent('  ');
 
   @override
   Map<String, List<String>> get buildExtensions => const {
@@ -23,7 +29,8 @@ class UrlAggregatorBuilder implements Builder {
 
   @override
   Future<void> build(BuildStep buildStep) async {
-    final paths = <String>{};
+    final routes = <_Route>[];
+    final seenPaths = <String>{};
 
     await for (final input in buildStep.findAssets(Glob('lib/**.dart'))) {
       if (!await buildStep.resolver.isLibrary(input)) continue;
@@ -39,16 +46,17 @@ class UrlAggregatorBuilder implements Builder {
           );
           continue;
         }
-        paths.add(path);
+        if (!seenPaths.add(path)) continue;
+        routes.add(_Route(path: path, query: _queryParams(classElement, path)));
       }
     }
 
-    final sorted = paths.toList()..sort();
-    final body = sorted.isEmpty ? '' : '${sorted.join('\n')}\n';
+    routes.sort((a, b) => a.path.compareTo(b.path));
+    final body = _jsonEncoder.convert(routes.map((r) => r.toJson()).toList());
 
     await buildStep.writeAsString(
       AssetId(buildStep.inputId.package, _outputAsset),
-      body,
+      '$body\n',
     );
   }
 
@@ -74,4 +82,58 @@ class UrlAggregatorBuilder implements Builder {
     }
     return false;
   }
+
+  List<_Param> _queryParams(ClassElement element, String path) {
+    final constructor = element.unnamedConstructor ?? element.constructors.firstOrNull;
+    if (constructor == null) return const [];
+
+    final pathParamNames = _pathParamPattern
+        .allMatches(path)
+        .map((m) => m.group(1)!)
+        .toSet();
+
+    final params = <_Param>[];
+    for (final parameter in constructor.formalParameters) {
+      final name = parameter.name;
+      if (name == null || name.isEmpty) continue;
+      if (name == _extraParamName) continue;
+      if (pathParamNames.contains(name)) continue;
+      params.add(_Param(name: name, type: _jsonType(parameter.type)));
+    }
+    return params;
+  }
+
+  String _jsonType(DartType type) {
+    if (type.isDartCoreString) return 'string';
+    if (type.isDartCoreBool) return 'boolean';
+    if (type.isDartCoreInt) return 'int';
+    if (type.isDartCoreDouble) return 'double';
+    if (type.isDartCoreList) return 'list';
+    return type.getDisplayString().toLowerCase();
+  }
+}
+
+class _Route {
+  _Route({required this.path, required this.query});
+
+  final String path;
+  final List<_Param> query;
+
+  Map<String, Object?> toJson() => {
+        'path': path,
+        'query': query.map((p) => p.toJson()).toList(),
+        'fragment': null,
+      };
+}
+
+class _Param {
+  _Param({required this.name, required this.type});
+
+  final String name;
+  final String type;
+
+  Map<String, Object?> toJson() => {
+        'name': name,
+        'type': type,
+      };
 }

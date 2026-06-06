@@ -10,7 +10,7 @@ builders:
     builder_factories: ["urlAggregatorBuilder"]
     build_extensions:
       $lib$:
-        - "app_urls.txt"
+        - "app_urls.json"
     auto_apply: dependents
     build_to: source
     required_inputs:
