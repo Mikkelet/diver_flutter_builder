@@ -65,8 +65,8 @@ class UrlAggregatorBuilder implements Builder {
           host: host,
           path: remainder,
           query: _queryParams(classElement, path),
-          name: diverRoute?.name,
-          description: diverRoute?.description,
+          name: diverRoute?.name ?? '',
+          description: diverRoute?.description ?? '',
         ));
       }
     }
@@ -167,19 +167,19 @@ class _Route {
     required this.host,
     required this.path,
     required this.query,
-    this.name,
-    this.description,
+    this.name = '',
+    this.description = '',
   });
 
   final String host;
   final String path;
   final List<_Param> query;
-  final String? name;
-  final String? description;
+  final String name;
+  final String description;
 
   Map<String, Object?> toJson() => {
-        if (name != null) 'name': name,
-        if (description != null) 'description': description,
+        'name': name,
+        'description': description,
         'host': host,
         'path': path,
         'query': query.map((p) => p.toJson()).toList(),
