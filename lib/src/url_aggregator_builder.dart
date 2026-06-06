@@ -58,7 +58,13 @@ class UrlAggregatorBuilder implements Builder {
         if (!seenPaths.add(path)) continue;
         final segments =
             path.split('/').where((s) => s.isNotEmpty).toList();
-        final host = segments.isEmpty ? '' : segments.first;
+        if (segments.isEmpty) {
+          log.fine(
+            '${classElement.name} skipped: empty host ("$path").',
+          );
+          continue;
+        }
+        final host = segments.first;
         final remainder = segments.skip(1).join('/');
         final diverRoute = _readDiverRoute(classElement);
         routes.add(_Route(
