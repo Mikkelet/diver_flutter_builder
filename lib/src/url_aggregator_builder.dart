@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:analyzer/dart/element/element.dart';
 import 'package:analyzer/dart/element/type.dart';
@@ -14,8 +15,16 @@ import 'package:source_gen/source_gen.dart';
 /// they require a runtime object and cannot be reached by URL alone, so they
 /// are not deeplink-safe.
 class UrlAggregatorBuilder implements Builder {
-  static const _outputAsset = 'lib/app_urls.json';
-  static const _outputExtension = 'app_urls.json';
+  UrlAggregatorBuilder({this.keepGenerated = false});
+
+  /// When false (the default), the generated `diver/app_urls.json` is deleted
+  /// from the source tree after the build. Set to true via the
+  /// `keep_generated` option in `build.yaml` to retain the file (e.g. for
+  /// inspection or for the `upload_urls` executable to consume).
+  final bool keepGenerated;
+
+  static const _outputAsset = 'diver/app_urls.json';
+  static const _outputExtension = 'diver/app_urls.json';
   static const _typedGoRouteName = 'TypedGoRoute';
   static const _diverRouteName = 'DiverRoute';
   static const _extraParamName = r'$extra';
@@ -27,7 +36,7 @@ class UrlAggregatorBuilder implements Builder {
 
   @override
   Map<String, List<String>> get buildExtensions => const {
-        r'$lib$': [_outputExtension],
+        r'$package$': [_outputExtension],
       };
 
   @override
@@ -93,6 +102,14 @@ class UrlAggregatorBuilder implements Builder {
       AssetId(buildStep.inputId.package, _outputAsset),
       '$body\n',
     );
+
+    if (!keepGenerated) {
+      final file = File(_outputAsset);
+      if (await file.exists()) {
+        await file.delete();
+        log.info('Deleted $_outputAsset (keep_generated=false).');
+      }
+    }
   }
 
   String? _readTypedGoRoutePath(Element element) {

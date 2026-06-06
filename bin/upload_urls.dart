@@ -3,7 +3,8 @@ import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
-const _defaultFilePath = 'lib/app_urls.json';
+const _defaultFilePath = 'diver/app_urls.json';
+const _configPath = 'diver/diver_config.properties';
 const _orgIdVar = "ORG_ID";
 const _appIdVar = "APP_ID";
 
@@ -15,9 +16,20 @@ Future<void> main(List<String> args) async {
 
   final file = File(filePath);
   if (!file.existsSync()) {
-    stderr.writeln(
-      'Error: $filePath not found. Run `dart run build_runner build` first.',
-    );
+    stderr
+      ..writeln('Error: $filePath not found.')
+      ..writeln()
+      ..writeln('Make sure you have:')
+      ..writeln('  1. Run `dart run build_runner build` to generate the file.')
+      ..writeln('  2. Set `keep_generated: true` in your build.yaml — the')
+      ..writeln('     builder deletes diver/app_urls.json by default. Example:')
+      ..writeln()
+      ..writeln('       targets:')
+      ..writeln('         \$default:')
+      ..writeln('           builders:')
+      ..writeln('             diver_flutter_builder|url_aggregator:')
+      ..writeln('               options:')
+      ..writeln('                 keep_generated: true');
     exit(1);
   }
 
@@ -49,7 +61,7 @@ Future<void> main(List<String> args) async {
 }
 
 Map<String, String> _loadDotEnv() {
-  final file = File('diver_config.properties');
+  final file = File(_configPath);
   if (!file.existsSync()) return const {};
 
   final result = <String, String>{};

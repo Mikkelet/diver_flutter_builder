@@ -6,4 +6,7 @@ import 'package:build/build.dart';
 
 import 'src/url_aggregator_builder.dart';
 
-Builder urlAggregatorBuilder(BuilderOptions options) => UrlAggregatorBuilder();
+Builder urlAggregatorBuilder(BuilderOptions options) {
+  final keepGenerated = options.config['keep_generated'] as bool? ?? false;
+  return UrlAggregatorBuilder(keepGenerated: keepGenerated);
+}
