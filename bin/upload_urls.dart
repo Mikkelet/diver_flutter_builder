@@ -11,7 +11,7 @@ Future<void> main(List<String> args) async {
   final filePath = args.isNotEmpty ? args.first : _defaultFilePath;
 
   final env = {..._loadDotEnv(), ...Platform.environment};
-  final url = "api.diver.mthy.dev";
+  final url = "https://api.diver.mthy.dev/import";
 
   final file = File(filePath);
   if (!file.existsSync()) {
