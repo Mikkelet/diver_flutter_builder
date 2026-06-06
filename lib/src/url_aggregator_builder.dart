@@ -49,11 +49,22 @@ class UrlAggregatorBuilder implements Builder {
           continue;
         }
         if (!seenPaths.add(path)) continue;
-        routes.add(_Route(path: path, query: _queryParams(classElement, path)));
+        final segments =
+            path.split('/').where((s) => s.isNotEmpty).toList();
+        final host = segments.isEmpty ? '' : segments.first;
+        final remainder = segments.skip(1).join('/');
+        routes.add(_Route(
+          host: host,
+          path: remainder,
+          query: _queryParams(classElement, path),
+        ));
       }
     }
 
-    routes.sort((a, b) => a.path.compareTo(b.path));
+    routes.sort((a, b) {
+      final byHost = a.host.compareTo(b.host);
+      return byHost != 0 ? byHost : a.path.compareTo(b.path);
+    });
     final body = _jsonEncoder.convert(routes.map((r) => r.toJson()).toList());
 
     await buildStep.writeAsString(
@@ -100,15 +111,15 @@ class UrlAggregatorBuilder implements Builder {
       if (name == null || name.isEmpty) continue;
       if (name == _extraParamName) continue;
       if (pathParamNames.contains(name)) continue;
-      params.add(_Param(name: _toSnakeCase(name), type: _jsonType(parameter.type)));
+      params.add(_Param(name: _toKebabCase(name), type: _jsonType(parameter.type)));
     }
     return params;
   }
 
-  String _toSnakeCase(String input) {
+  String _toKebabCase(String input) {
     return input
-        .replaceAllMapped(_camelBoundary2, (m) => '${m[1]}_${m[2]}')
-        .replaceAllMapped(_camelBoundary1, (m) => '${m[1]}_${m[2]}')
+        .replaceAllMapped(_camelBoundary2, (m) => '${m[1]}-${m[2]}')
+        .replaceAllMapped(_camelBoundary1, (m) => '${m[1]}-${m[2]}')
         .toLowerCase();
   }
 
@@ -124,12 +135,14 @@ class UrlAggregatorBuilder implements Builder {
 }
 
 class _Route {
-  _Route({required this.path, required this.query});
+  _Route({required this.host, required this.path, required this.query});
 
+  final String host;
   final String path;
   final List<_Param> query;
 
   Map<String, Object?> toJson() => {
+        'host': host,
         'path': path,
         'query': query.map((p) => p.toJson()).toList(),
       };
