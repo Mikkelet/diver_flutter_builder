@@ -185,6 +185,7 @@ class UrlAggregatorBuilder implements Builder {
     if (type.isDartCoreDouble) return 'string';
     if (type.isDartCoreNum) return 'string';
     if (type.isDartCoreList) return 'list';
+    if (type.element is EnumElement) return 'string';
     return type.getDisplayString().toLowerCase();
   }
 }
