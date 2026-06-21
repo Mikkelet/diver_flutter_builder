@@ -11,6 +11,7 @@ builders:
     build_extensions:
       $package$:
         - "diver/app_urls.json"
+        - "diver/app_urls_errors.json"
     auto_apply: dependents
     build_to: source
     required_inputs:

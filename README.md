@@ -4,7 +4,7 @@ A `build_runner` builder that aggregates [`go_router`](https://pub.dev/packages/
 
 The builder scans every Dart library in the consuming package for classes annotated with `@TypedGoRoute(...)`, collects their path and query parameters, and writes them — sorted by host then path — to `diver/app_urls.json`. Optional `@DiverRoute(...)` annotations (from [`diver_flutter_annotation`](../diver_flutter_annotation)) contribute a human-readable `name` and `description` for each route.
 
-Routes whose class declares a `$extra` constructor parameter are skipped: they require a runtime object and cannot be reached by URL alone, so they are not deeplink-safe.
+Routes whose class declares a `$extra` constructor parameter are kept out of `app_urls.json`: they require a runtime object and cannot be reached by URL alone, so they are not deeplink-safe. Each excluded route is instead recorded in `diver/app_urls_errors.json` with a description of why it cannot be used for a deeplink, and reported as a build warning. The error file is only written when there is at least one excluded route, and `build_runner` removes it automatically once every route is deeplink-safe again.
 
 ## Installation
 
@@ -78,7 +78,22 @@ The generated `diver/app_urls.json` will be:
 }
 ```
 
-`DetailRoute` is excluded because it depends on `$extra`. Routes without a `@DiverRoute` annotation get empty `name` and `description` defaults.
+`DetailRoute` is excluded from `app_urls.json` because it depends on `$extra`. Routes without a `@DiverRoute` annotation get empty `name` and `description` defaults.
+
+Because `DetailRoute` was excluded, the builder also writes `diver/app_urls_errors.json`:
+
+```json
+{
+  "errors": [
+    {
+      "route": "DetailRoute",
+      "path": "/detail",
+      "extra": "Item",
+      "reason": "Route declares a $extra constructor parameter (Item). $extra requires a runtime Dart object that cannot be encoded in a URL, so this route cannot be reached by a deeplink."
+    }
+  ]
+}
+```
 
 ## Configuration
 

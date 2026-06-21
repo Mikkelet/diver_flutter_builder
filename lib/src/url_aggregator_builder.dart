@@ -11,9 +11,11 @@ import 'package:source_gen/source_gen.dart';
 /// carrying a `@TypedGoRoute(...)` annotation and writes a JSON description of
 /// each route to `lib/app_urls.json`, sorted alphabetically by path.
 ///
-/// Routes whose class has a `$extra` constructor parameter are excluded:
-/// they require a runtime object and cannot be reached by URL alone, so they
-/// are not deeplink-safe.
+/// Routes whose class has a `$extra` constructor parameter are excluded from
+/// `app_urls.json`: they require a runtime object and cannot be reached by URL
+/// alone, so they are not deeplink-safe. Each excluded route is instead written
+/// to `diver/app_urls_errors.json` together with a description of why it cannot
+/// be used for a deeplink.
 class UrlAggregatorBuilder implements Builder {
   UrlAggregatorBuilder({this.keepGenerated = false});
 
@@ -25,6 +27,8 @@ class UrlAggregatorBuilder implements Builder {
 
   static const _outputAsset = 'diver/app_urls.json';
   static const _outputExtension = 'diver/app_urls.json';
+  static const _errorAsset = 'diver/app_urls_errors.json';
+  static const _errorExtension = 'diver/app_urls_errors.json';
   static const _typedGoRouteName = 'TypedGoRoute';
   static const _diverRouteName = 'DiverRoute';
   static const _extraParamName = r'$extra';
@@ -36,12 +40,13 @@ class UrlAggregatorBuilder implements Builder {
 
   @override
   Map<String, List<String>> get buildExtensions => const {
-        r'$package$': [_outputExtension],
+        r'$package$': [_outputExtension, _errorExtension],
       };
 
   @override
   Future<void> build(BuildStep buildStep) async {
     final routes = <_Route>[];
+    final excluded = <_ExcludedRoute>[];
     final seenPaths = <String>{};
 
     await for (final input in buildStep.findAssets(Glob('lib/**.dart'))) {
@@ -58,9 +63,18 @@ class UrlAggregatorBuilder implements Builder {
           );
           continue;
         }
-        if (_hasExtraParameter(classElement)) {
-          log.fine(
-            '${classElement.name} skipped: has \$extra constructor parameter.',
+        final extraType = _extraParameterType(classElement);
+        if (extraType != null) {
+          final routeName = classElement.name ?? '<unknown>';
+          excluded.add(_ExcludedRoute(
+            route: routeName,
+            path: path,
+            extra: extraType,
+            reason: _deeplinkErrorReason(extraType),
+          ));
+          log.warning(
+            '$routeName excluded from deeplinks: has a \$extra constructor '
+            'parameter ($extraType). See $_errorAsset.',
           );
           continue;
         }
@@ -103,6 +117,21 @@ class UrlAggregatorBuilder implements Builder {
       '$body\n',
     );
 
+    // Routes that depend on `$extra` are not deeplink-safe. Surface them in a
+    // dedicated error file so they are not lost. The file is written only when
+    // there is something to report; build_runner removes a previously generated
+    // one automatically once every route is deeplink-safe again.
+    if (excluded.isNotEmpty) {
+      excluded.sort((a, b) => a.route.compareTo(b.route));
+      final errorBody = _jsonEncoder.convert({
+        'errors': excluded.map((e) => e.toJson()).toList(),
+      });
+      await buildStep.writeAsString(
+        AssetId(buildStep.inputId.package, _errorAsset),
+        '$errorBody\n',
+      );
+    }
+
     if (!keepGenerated) {
       final file = File(_outputAsset);
       if (await file.exists()) {
@@ -111,6 +140,11 @@ class UrlAggregatorBuilder implements Builder {
       }
     }
   }
+
+  String _deeplinkErrorReason(String extraType) =>
+      'Route declares a \$extra constructor parameter ($extraType). \$extra '
+      'requires a runtime Dart object that cannot be encoded in a URL, so this '
+      'route cannot be reached by a deeplink.';
 
   String? _readTypedGoRoutePath(Element element) {
     for (final annotation in element.metadata.annotations) {
@@ -142,13 +176,18 @@ class UrlAggregatorBuilder implements Builder {
     return null;
   }
 
-  bool _hasExtraParameter(ClassElement element) {
+  /// Returns the display type of the `$extra` constructor parameter (e.g.
+  /// `Item` or `DeeplinkTemplate?`) if the class declares one, or `null` when
+  /// no constructor takes a `$extra` parameter.
+  String? _extraParameterType(ClassElement element) {
     for (final constructor in element.constructors) {
       for (final parameter in constructor.formalParameters) {
-        if (parameter.name == _extraParamName) return true;
+        if (parameter.name == _extraParamName) {
+          return parameter.type.getDisplayString();
+        }
       }
     }
-    return false;
+    return null;
   }
 
   List<_Param> _queryParams(ClassElement element, String path) {
@@ -223,5 +262,35 @@ class _Param {
   Map<String, Object?> toJson() => {
         'name': name,
         'type': type,
+      };
+}
+
+/// A route that was kept out of `app_urls.json` because it is not
+/// deeplink-safe, recorded in `app_urls_errors.json` with [reason].
+class _ExcludedRoute {
+  _ExcludedRoute({
+    required this.route,
+    required this.path,
+    required this.extra,
+    required this.reason,
+  });
+
+  /// Name of the annotated route class, e.g. `DetailRoute`.
+  final String route;
+
+  /// The `@TypedGoRoute` path declared on the class, e.g. `/detail`.
+  final String path;
+
+  /// Display type of the `$extra` constructor parameter, e.g. `Item`.
+  final String extra;
+
+  /// Human-readable explanation of why the route is not deeplink-safe.
+  final String reason;
+
+  Map<String, Object?> toJson() => {
+        'route': route,
+        'path': path,
+        'extra': extra,
+        'reason': reason,
       };
 }
