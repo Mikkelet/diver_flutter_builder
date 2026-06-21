@@ -4,7 +4,7 @@ description: >-
   @TypedGoRoute annotations) into a single text file. Routes whose class
   has a required $extra constructor parameter are excluded and instead
   recorded in diver/app_urls_errors.json as not deeplink-safe.
-version: 0.1.4
+version: 0.1.5
 publish_to: "none"
 
 environment:
