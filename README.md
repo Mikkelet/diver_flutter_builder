@@ -78,12 +78,14 @@ The generated `diver/app_urls.json` will be:
       "host": "settings",
       "path": "",
       "query": [
-        {"name": "tab", "type": "string"}
+        {"name": "tab", "type": "string", "required": false}
       ]
     }
   ]
 }
 ```
+
+Each query parameter carries a `required` flag: it is `true` when the caller must supply the parameter — that is, when the corresponding constructor parameter has no default value and a non-nullable type — and `false` when it is optional (nullable or defaulted). Above, `tab` is `String? tab`, so `required` is `false`.
 
 `DetailRoute` is excluded from `app_urls.json` because its `$extra` is required (non-nullable, no default). Routes without a `@DiverRoute` annotation get empty `name` and `description` defaults.
 

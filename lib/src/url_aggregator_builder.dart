@@ -69,7 +69,7 @@ class UrlAggregatorBuilder implements Builder {
           continue;
         }
         final extra = _extraParameter(classElement);
-        if (extra != null && !_extraAllowsDeeplink(extra)) {
+        if (extra != null && !_isOptionalParameter(extra)) {
           final routeName = classElement.name ?? '<unknown>';
           final extraType = extra.type.getDisplayString();
           excluded.add(_ExcludedRoute(
@@ -196,12 +196,15 @@ class UrlAggregatorBuilder implements Builder {
     return null;
   }
 
-  /// Whether a `$extra` [parameter] still allows its route to be reached by a
-  /// URL. A deeplink can never carry `$extra`, so the route must be able to cope
-  /// with its absence: that is true when the parameter has a default value, or
-  /// when its type is nullable (it then arrives as `null`). Only a required,
-  /// non-nullable `$extra` with no default makes the route unreachable by URL.
-  bool _extraAllowsDeeplink(FormalParameterElement parameter) {
+  /// Whether [parameter] can be omitted by the caller. That is true when it has
+  /// a default value, or when its type accepts `null` (nullable or `dynamic`). A
+  /// parameter that is neither must always be supplied, so it is required.
+  ///
+  /// This drives two things: a `$extra` parameter only blocks deeplinking when
+  /// it is *not* optional (a URL can never carry `$extra`, so the route must
+  /// cope with its absence), and a query parameter is marked `required` in the
+  /// JSON output when it is *not* optional.
+  bool _isOptionalParameter(FormalParameterElement parameter) {
     if (parameter.hasDefaultValue) return true;
     final type = parameter.type;
     if (type is DynamicType) return true;
@@ -223,7 +226,11 @@ class UrlAggregatorBuilder implements Builder {
       if (name == null || name.isEmpty) continue;
       if (name == _extraParamName) continue;
       if (pathParamNames.contains(name)) continue;
-      params.add(_Param(name: _toKebabCase(name), type: _jsonType(parameter.type)));
+      params.add(_Param(
+        name: _toKebabCase(name),
+        type: _jsonType(parameter.type),
+        isRequired: !_isOptionalParameter(parameter),
+      ));
     }
     return params;
   }
@@ -272,14 +279,19 @@ class _Route {
 }
 
 class _Param {
-  _Param({required this.name, required this.type});
+  _Param({required this.name, required this.type, required this.isRequired});
 
   final String name;
   final String type;
 
+  /// Whether the caller must supply this query parameter, i.e. it has no
+  /// default value and its type is non-nullable.
+  final bool isRequired;
+
   Map<String, Object?> toJson() => {
         'name': name,
         'type': type,
+        'required': isRequired,
       };
 }
 
