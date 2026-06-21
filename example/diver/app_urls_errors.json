@@ -1,0 +1,10 @@
+{
+  "errors": [
+    {
+      "route": "CheckoutRoute",
+      "path": "/checkout",
+      "extra": "Cart",
+      "reason": "Route requires a non-nullable $extra constructor parameter (Cart) with no default value. $extra carries a runtime Dart object that cannot be encoded in a URL, and the route cannot be constructed without it, so it cannot be reached by a deeplink. Make $extra nullable or give it a default value to allow URL navigation without the payload."
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+# go_router_builder and diver_flutter_builder both auto-apply to dependents,
+# so they run from `dart run build_runner build` without extra wiring.
+#
+# keep_generated tells diver_flutter_builder to leave diver/app_urls.json in the
+# source tree after the build (it is deleted by default) so the output of this
+# example can be inspected.
+targets:
+  $default:
+    builders:
+      diver_flutter_builder|url_aggregator:
+        options:
+          keep_generated: true

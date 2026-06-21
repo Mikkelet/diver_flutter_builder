@@ -1,0 +1,54 @@
+{
+  "routes": [
+    {
+      "name": "home",
+      "description": "",
+      "host": "home",
+      "path": "",
+      "query": []
+    },
+    {
+      "name": "profile",
+      "description": "",
+      "host": "profile",
+      "path": "",
+      "query": []
+    },
+    {
+      "name": "Product search",
+      "description": "Full-text product search with optional paging and filtering.",
+      "host": "search",
+      "path": "",
+      "query": [
+        {
+          "name": "term",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "page",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "category",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "name": "users/:id",
+      "description": "",
+      "host": "users",
+      "path": ":id",
+      "query": [
+        {
+          "name": "tab",
+          "type": "string",
+          "required": false
+        }
+      ]
+    }
+  ]
+}

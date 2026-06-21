@@ -28,6 +28,8 @@ dev_dependencies:
   build_runner: ^2.4.0
 ```
 
+For a complete, runnable setup see [`example/`](example), a small Flutter app whose routes exercise every case the builder handles (plain routes, query parameters, path parameters, `@DiverRoute` metadata, and both optional and required `$extra`).
+
 ## Usage
 
 Run the builder:
