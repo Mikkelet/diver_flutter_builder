@@ -4,7 +4,14 @@ A `build_runner` builder that aggregates [`go_router`](https://pub.dev/packages/
 
 The builder scans every Dart library in the consuming package for classes annotated with `@TypedGoRoute(...)`, collects their path and query parameters, and writes them — sorted by host then path — to `diver/app_urls.json`. Optional `@DiverRoute(...)` annotations (from [`diver_flutter_annotation`](../diver_flutter_annotation)) contribute a human-readable `name` and `description` for each route.
 
-Routes whose class declares a `$extra` constructor parameter are kept out of `app_urls.json`: they require a runtime object and cannot be reached by URL alone, so they are not deeplink-safe. Each excluded route is instead recorded in `diver/app_urls_errors.json` with a description of why it cannot be used for a deeplink, and reported as a build warning. The error file is only written when there is at least one excluded route, and `build_runner` removes it automatically once every route is deeplink-safe again.
+Routes whose class declares a **required** `$extra` constructor parameter are kept out of `app_urls.json`: they need a runtime object that a URL cannot carry, so they are not deeplink-safe. Each excluded route is instead recorded in `diver/app_urls_errors.json` with a description of why it cannot be used for a deeplink, and reported as a build warning. The error file is only written when there is at least one excluded route, and `build_runner` removes it automatically once every route is deeplink-safe again.
+
+A `$extra` parameter that is **optional** does not exclude its route — the route can still be opened from a URL, where `$extra` simply arrives as `null` or its default. A `$extra` is treated as optional when either:
+
+- its type is **nullable** (e.g. `Item? $extra`), or
+- it declares a **default value** (e.g. `this.$extra = const Item()`).
+
+In all cases `$extra` is never emitted as a query parameter.
 
 ## Installation
 
@@ -78,7 +85,7 @@ The generated `diver/app_urls.json` will be:
 }
 ```
 
-`DetailRoute` is excluded from `app_urls.json` because it depends on `$extra`. Routes without a `@DiverRoute` annotation get empty `name` and `description` defaults.
+`DetailRoute` is excluded from `app_urls.json` because its `$extra` is required (non-nullable, no default). Routes without a `@DiverRoute` annotation get empty `name` and `description` defaults.
 
 Because `DetailRoute` was excluded, the builder also writes `diver/app_urls_errors.json`:
 
@@ -89,7 +96,7 @@ Because `DetailRoute` was excluded, the builder also writes `diver/app_urls_erro
       "route": "DetailRoute",
       "path": "/detail",
       "extra": "Item",
-      "reason": "Route declares a $extra constructor parameter (Item). $extra requires a runtime Dart object that cannot be encoded in a URL, so this route cannot be reached by a deeplink."
+      "reason": "Route requires a non-nullable $extra constructor parameter (Item) with no default value. $extra carries a runtime Dart object that cannot be encoded in a URL, and the route cannot be constructed without it, so it cannot be reached by a deeplink. Make $extra nullable or give it a default value to allow URL navigation without the payload."
     }
   ]
 }

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:analyzer/dart/element/element.dart';
+import 'package:analyzer/dart/element/nullability_suffix.dart';
 import 'package:analyzer/dart/element/type.dart';
 import 'package:build/build.dart';
 import 'package:glob/glob.dart';
@@ -11,11 +12,15 @@ import 'package:source_gen/source_gen.dart';
 /// carrying a `@TypedGoRoute(...)` annotation and writes a JSON description of
 /// each route to `lib/app_urls.json`, sorted alphabetically by path.
 ///
-/// Routes whose class has a `$extra` constructor parameter are excluded from
-/// `app_urls.json`: they require a runtime object and cannot be reached by URL
-/// alone, so they are not deeplink-safe. Each excluded route is instead written
-/// to `diver/app_urls_errors.json` together with a description of why it cannot
-/// be used for a deeplink.
+/// Routes whose class has a *required* `$extra` constructor parameter are
+/// excluded from `app_urls.json`: they need a runtime object that cannot be
+/// supplied through a URL, so they are not deeplink-safe. Each excluded route is
+/// instead written to `diver/app_urls_errors.json` together with a description
+/// of why it cannot be used for a deeplink.
+///
+/// A `$extra` parameter that is optional — i.e. nullable or carrying a default
+/// value — does not exclude its route: such routes can still be opened from a
+/// URL, where `$extra` simply arrives as `null` (or its default).
 class UrlAggregatorBuilder implements Builder {
   UrlAggregatorBuilder({this.keepGenerated = false});
 
@@ -63,9 +68,10 @@ class UrlAggregatorBuilder implements Builder {
           );
           continue;
         }
-        final extraType = _extraParameterType(classElement);
-        if (extraType != null) {
+        final extra = _extraParameter(classElement);
+        if (extra != null && !_extraAllowsDeeplink(extra)) {
           final routeName = classElement.name ?? '<unknown>';
+          final extraType = extra.type.getDisplayString();
           excluded.add(_ExcludedRoute(
             route: routeName,
             path: path,
@@ -73,8 +79,9 @@ class UrlAggregatorBuilder implements Builder {
             reason: _deeplinkErrorReason(extraType),
           ));
           log.warning(
-            '$routeName excluded from deeplinks: has a \$extra constructor '
-            'parameter ($extraType). See $_errorAsset.',
+            '$routeName excluded from deeplinks: requires a non-nullable '
+            '\$extra parameter ($extraType) with no default value. '
+            'See $_errorAsset.',
           );
           continue;
         }
@@ -142,9 +149,11 @@ class UrlAggregatorBuilder implements Builder {
   }
 
   String _deeplinkErrorReason(String extraType) =>
-      'Route declares a \$extra constructor parameter ($extraType). \$extra '
-      'requires a runtime Dart object that cannot be encoded in a URL, so this '
-      'route cannot be reached by a deeplink.';
+      'Route requires a non-nullable \$extra constructor parameter ($extraType) '
+      'with no default value. \$extra carries a runtime Dart object that cannot '
+      'be encoded in a URL, and the route cannot be constructed without it, so '
+      'it cannot be reached by a deeplink. Make \$extra nullable or give it a '
+      'default value to allow URL navigation without the payload.';
 
   String? _readTypedGoRoutePath(Element element) {
     for (final annotation in element.metadata.annotations) {
@@ -176,18 +185,27 @@ class UrlAggregatorBuilder implements Builder {
     return null;
   }
 
-  /// Returns the display type of the `$extra` constructor parameter (e.g.
-  /// `Item` or `DeeplinkTemplate?`) if the class declares one, or `null` when
-  /// no constructor takes a `$extra` parameter.
-  String? _extraParameterType(ClassElement element) {
+  /// Returns the `$extra` constructor parameter if any constructor of [element]
+  /// declares one, or `null` when none does.
+  FormalParameterElement? _extraParameter(ClassElement element) {
     for (final constructor in element.constructors) {
       for (final parameter in constructor.formalParameters) {
-        if (parameter.name == _extraParamName) {
-          return parameter.type.getDisplayString();
-        }
+        if (parameter.name == _extraParamName) return parameter;
       }
     }
     return null;
+  }
+
+  /// Whether a `$extra` [parameter] still allows its route to be reached by a
+  /// URL. A deeplink can never carry `$extra`, so the route must be able to cope
+  /// with its absence: that is true when the parameter has a default value, or
+  /// when its type is nullable (it then arrives as `null`). Only a required,
+  /// non-nullable `$extra` with no default makes the route unreachable by URL.
+  bool _extraAllowsDeeplink(FormalParameterElement parameter) {
+    if (parameter.hasDefaultValue) return true;
+    final type = parameter.type;
+    if (type is DynamicType) return true;
+    return type.nullabilitySuffix == NullabilitySuffix.question;
   }
 
   List<_Param> _queryParams(ClassElement element, String path) {

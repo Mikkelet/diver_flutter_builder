@@ -2,8 +2,8 @@ name: diver_flutter_builder
 description: >-
   build_runner builder that aggregates go_router route URLs (read from
   @TypedGoRoute annotations) into a single text file. Routes whose class
-  has a $extra constructor parameter are excluded and instead recorded in
-  diver/app_urls_errors.json as not deeplink-safe.
+  has a required $extra constructor parameter are excluded and instead
+  recorded in diver/app_urls_errors.json as not deeplink-safe.
 version: 0.1.4
 publish_to: "none"
 
