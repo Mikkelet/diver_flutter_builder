@@ -144,9 +144,12 @@ dart run diver_flutter_builder:upload_urls path/to/diver/app_urls.json
 Prerequisites:
 
 - `diver/app_urls.json` must exist — run `dart run build_runner build` first.
-- `ORG_ID` and `APP_ID` must be set, either as environment variables or in a `diver/diver_config.properties` file in the working directory. The file uses a simple `KEY=value` format, one per line:
+- `ORG_ID`, `APP_ID` and `DIVER_API_KEY` must be set, either as environment variables or in a `diver/diver_config.properties` file in the working directory. The file uses a simple `KEY=value` format, one per line:
 
   ```properties
   ORG_ID=your-org-id
   APP_ID=your-app-id
+  DIVER_API_KEY=dk_your-api-key
   ```
+
+  `DIVER_API_KEY` authenticates the upload as an org-scoped machine caller — create one in the Diver dashboard under **Organization → Members → API keys**. The key is sent as `Authorization: Bearer <key>` on the import request; without it the API rejects the upload with 401.

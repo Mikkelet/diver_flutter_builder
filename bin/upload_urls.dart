@@ -7,12 +7,13 @@ const _defaultFilePath = 'diver/app_urls.json';
 const _configPath = 'diver/diver_config.properties';
 const _orgIdVar = "ORG_ID";
 const _appIdVar = "APP_ID";
+const _apiKeyVar = "DIVER_API_KEY";
+const _baseUrl = "https://api.diver.mthy.dev";
 
 Future<void> main(List<String> args) async {
   final filePath = args.isNotEmpty ? args.first : _defaultFilePath;
 
   final env = {..._loadDotEnv(), ...Platform.environment};
-  final url = "https://api.diver.mthy.dev/import";
 
   final file = File(filePath);
   if (!file.existsSync()) {
@@ -37,12 +38,28 @@ Future<void> main(List<String> args) async {
   final decoded = json.decode(routes) as Map;
   final orgId = env[_orgIdVar];
   final appId = env[_appIdVar];
+  final apiKey = env[_apiKeyVar];
 
+  if (orgId == null || appId == null) {
+    stderr.writeln('Error: $_orgIdVar and $_appIdVar must be set.');
+    exit(1);
+  }
+  if (apiKey == null || apiKey.isEmpty) {
+    stderr
+      ..writeln('Error: $_apiKeyVar is not set.')
+      ..writeln()
+      ..writeln('The import endpoint requires authentication. Create a key in')
+      ..writeln('the Diver dashboard under Organization -> Members -> API keys,')
+      ..writeln('then expose it to CI as $_apiKeyVar.');
+    exit(1);
+  }
+
+  final url = '$_baseUrl/organizations/$orgId/apps/$appId/import';
   final body = {...decoded, "org_id": orgId, "app_id": appId};
 
   final headers = <String, String>{
     'Content-Type': 'application/json',
-    // if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',.
+    'Authorization': 'Bearer $apiKey',
   };
 
   stdout.writeln('Uploading $filePath -> $url');

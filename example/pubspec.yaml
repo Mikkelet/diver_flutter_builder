@@ -14,7 +14,8 @@ dependencies:
     sdk: flutter
   go_router: ^17.0.0
   diver_flutter_annotation:
-    path: ../../diver_flutter_annotation
+    git:
+      url: https://github.com/Mikkelet/diver_flutter_annotation
 
 dev_dependencies:
   build_runner: ^2.4.0
